@@ -10,98 +10,114 @@ struct PreferencesView: View {
     private let intervals = [1, 5, 10, 15, 30, 60]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 16) {
-                GridRow {
-                    preferenceLabel("FreeFileSync")
-                    HStack(spacing: 8) {
-                        TextField(
-                            "Choose FreeFileSync.app",
-                            text: $settings.freeFileSyncAppPath
-                        )
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: .infinity)
-                        Button("Choose…", action: chooseFreeFileSyncApp)
-                    }
-                }
-
-                GridRow {
-                    preferenceLabel("Batch Job")
-                    HStack(spacing: 8) {
-                        TextField("Choose a .ffs_batch file", text: $settings.batchJobPath)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 18) {
+                Grid(
+                    alignment: .leading,
+                    horizontalSpacing: 14,
+                    verticalSpacing: 16
+                ) {
+                    GridRow {
+                        preferenceLabel("FreeFileSync")
+                        HStack(spacing: 8) {
+                            TextField(
+                                "Choose FreeFileSync.app",
+                                text: $settings.freeFileSyncAppPath
+                            )
                             .textFieldStyle(.roundedBorder)
                             .frame(maxWidth: .infinity)
-                        Button("Choose…", action: chooseBatchJob)
-                    }
-                }
-
-                GridRow {
-                    preferenceLabel("Sync Interval")
-                    Picker("", selection: $settings.intervalMinutes) {
-                        ForEach(intervals, id: \.self) { minutes in
-                            Text(intervalLabel(minutes)).tag(minutes)
+                            Button("Choose…", action: chooseFreeFileSyncApp)
                         }
                     }
-                    .labelsHidden()
-                    .frame(width: 180, alignment: .leading)
+
+                    GridRow {
+                        preferenceLabel("Batch Job")
+                        HStack(spacing: 8) {
+                            TextField(
+                                "Choose a .ffs_batch file",
+                                text: $settings.batchJobPath
+                            )
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: .infinity)
+                            Button("Choose…", action: chooseBatchJob)
+                        }
+                    }
+
+                    GridRow {
+                        preferenceLabel("Sync Interval")
+                        Picker("", selection: $settings.intervalMinutes) {
+                            ForEach(intervals, id: \.self) { minutes in
+                                Text(intervalLabel(minutes)).tag(minutes)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 180, alignment: .leading)
+                    }
                 }
-            }
 
-            Divider()
+                Divider()
 
-            VStack(alignment: .leading, spacing: 12) {
-                Toggle(
-                    "Launch at Login",
-                    isOn: Binding(
-                        get: { model.launchAtLoginEnabled },
-                        set: { model.setLaunchAtLogin($0) }
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle(
+                        "Launch at Login",
+                        isOn: Binding(
+                            get: { model.launchAtLoginEnabled },
+                            set: { model.setLaunchAtLogin($0) }
+                        )
                     )
-                )
 
-                Toggle(
-                    "Notifications for warnings and failures",
-                    isOn: $settings.notificationsOnFailure
-                )
-                .onChange(of: settings.notificationsOnFailure) { _, enabled in
-                    if enabled { model.requestNotificationAuthorizationIfNeeded() }
+                    Toggle(
+                        "Notifications for warnings and failures",
+                        isOn: $settings.notificationsOnFailure
+                    )
+                    .onChange(
+                        of: settings.notificationsOnFailure
+                    ) { _, enabled in
+                        if enabled {
+                            model.requestNotificationAuthorizationIfNeeded()
+                        }
+                    }
                 }
-            }
-            .padding(.leading, 134)
+                .padding(.leading, 134)
 
-            Divider()
+                Divider()
 
-            IconStudioView(model: model)
+                IconStudioView(model: model)
 
-            if let message = model.lastErrorMessage {
-                Text(message)
-                    .foregroundStyle(.red)
-                    .font(.callout)
-                    .lineLimit(2)
-            }
-
-            HStack {
-                Button {
-                    isShowingResetConfirmation = true
-                } label: {
-                    Text("Reset All Preferences…")
+                if let message = model.lastErrorMessage {
+                    Text(message)
                         .foregroundStyle(.red)
+                        .font(.callout)
+                        .lineLimit(2)
                 }
-                .buttonStyle(.plain)
 
-                Spacer()
+                HStack {
+                    Button {
+                        isShowingResetConfirmation = true
+                    } label: {
+                        Text("Reset All Preferences…")
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
 
-                Text("Synchronization rules remain managed by FreeFileSync.")
+                    Spacer()
+
+                    Text(
+                        "Synchronization rules remain managed by FreeFileSync."
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Button("Open Batch in FreeFileSync") {
-                    model.openBatchInFreeFileSync()
+                    Button("Open Batch in FreeFileSync") {
+                        model.openBatchInFreeFileSync()
+                    }
+                    .disabled(!model.canOpenBatch)
                 }
-                .disabled(!model.canOpenBatch)
             }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding(24)
-        .frame(width: 780, height: 810, alignment: .topLeading)
+        .frame(width: 780)
         .onAppear {
             model.requestNotificationAuthorizationIfNeeded()
         }

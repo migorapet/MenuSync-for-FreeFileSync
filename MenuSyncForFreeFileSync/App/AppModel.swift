@@ -365,13 +365,24 @@ final class AppModel: ObservableObject {
     }
 
     private func presentPreferencesWindow() {
-        let contentSize = NSSize(width: 780, height: 730)
+        let preferredHeight: CGFloat = 810
+        let availableHeight = NSScreen.main?.visibleFrame.height
+            ?? preferredHeight
+        let contentSize = NSSize(
+            width: 780,
+            height: min(
+                preferredHeight,
+                max(620, availableHeight - 40)
+            )
+        )
 
         if let window = preferencesWindowController?.window {
             if window.isMiniaturized {
                 window.deminiaturize(nil)
             }
             window.setContentSize(contentSize)
+            window.contentMinSize = contentSize
+            window.center()
             NSApp.unhide(nil)
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
