@@ -27,6 +27,7 @@ final class AppModel: ObservableObject {
     @Published private(set) var previewIconDrawing: CustomIconDrawing? = nil
     @Published private(set) var previewAnimationConfiguration:
         IconAnimationConfiguration? = nil
+    @Published private(set) var iconPreviewEndsAt: Date?
 
     private static let summaryKey = "lastSyncSummary"
     private static let failureCountKey = "consecutiveFailureCount"
@@ -200,6 +201,13 @@ final class AppModel: ObservableObject {
 
     var menuBarStatusText: String { indicator.displayName }
     var isPreviewingIcon: Bool { previewIconDrawing != nil }
+    var iconPreviewSecondsRemaining: Int {
+        guard isPreviewingIcon, let iconPreviewEndsAt else { return 0 }
+        return max(
+            Int(ceil(iconPreviewEndsAt.timeIntervalSinceNow)),
+            0
+        )
+    }
 
     var lastSyncText: String {
         guard let summary = lastSummary else { return "Never" }
@@ -436,7 +444,8 @@ final class AppModel: ObservableObject {
         iconFrameCacheSignature = nil
         iconAnimationStartedAt = nil
         iconPreviewTimer?.invalidate()
-        let timer = Timer(timeInterval: 15, repeats: false) { [weak self] _ in
+        iconPreviewEndsAt = Date().addingTimeInterval(5)
+        let timer = Timer(timeInterval: 5, repeats: false) { [weak self] _ in
             Task { @MainActor in
                 self?.clearIconPreview()
             }
@@ -450,6 +459,7 @@ final class AppModel: ObservableObject {
         iconPreviewTimer = nil
         previewIconDrawing = nil
         previewAnimationConfiguration = nil
+        iconPreviewEndsAt = nil
         iconFrameCacheSignature = nil
         iconAnimationStartedAt = nil
     }

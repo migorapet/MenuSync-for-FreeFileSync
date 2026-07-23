@@ -101,7 +101,7 @@ struct PreferencesView: View {
             }
         }
         .padding(24)
-        .frame(width: 780, height: 780, alignment: .topLeading)
+        .frame(width: 780, height: 810, alignment: .topLeading)
         .onAppear {
             model.requestNotificationAuthorizationIfNeeded()
         }

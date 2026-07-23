@@ -105,22 +105,35 @@ struct IconStudioView: View {
                                     .disabled(draft.isEmpty)
                                 }
 
-                                HStack {
-                                    Button("Preview Draft") {
+                                Button(
+                                    previewButtonTitle
+                                ) {
+                                    if model.isPreviewingIcon {
+                                        model.clearIconPreview()
+                                    } else {
                                         model.previewIcon(
                                             draft,
                                             animationConfiguration:
                                                 animationConfiguration
                                         )
                                     }
-                                    .disabled(draft.isEmpty)
-
-                                    if model.isPreviewingIcon {
-                                        Button("Stop") {
-                                            model.clearIconPreview()
-                                        }
-                                    }
                                 }
+                                .disabled(
+                                    draft.isEmpty
+                                        && !model.isPreviewingIcon
+                                )
+
+                                Button(
+                                    "Save & Use for \(selectedIndicator.displayName)"
+                                ) {
+                                    settings.saveAndAssign(
+                                        draft,
+                                        to: selectedIndicator
+                                    )
+                                    model.clearIconPreview()
+                                    draft = CustomIconDrawing()
+                                }
+                                .disabled(draft.isEmpty)
                             }
                         }
 
@@ -171,23 +184,12 @@ struct IconStudioView: View {
                             .frame(height: 58)
                         }
 
-                        Button(
-                            "Save & Use for \(selectedIndicator.displayName)"
-                        ) {
-                            settings.saveAndAssign(
-                                draft,
-                                to: selectedIndicator
-                            )
-                            model.clearIconPreview()
-                            draft = CustomIconDrawing()
-                        }
-                        .disabled(draft.isEmpty)
                     }
                 }
                 .frame(
                     maxWidth: .infinity,
-                    minHeight: 375,
-                    maxHeight: 375,
+                    minHeight: 405,
+                    maxHeight: 405,
                     alignment: .top
                 )
 
@@ -281,14 +283,19 @@ struct IconStudioView: View {
                 }
                 .frame(width: 265)
                 .frame(
-                    minHeight: 375,
-                    maxHeight: 375,
+                    minHeight: 405,
+                    maxHeight: 405,
                     alignment: .top
                 )
             }
         }
         .onChange(of: selectedIndicator) { _, _ in
             model.clearIconPreview()
+        }
+        .onChange(of: draft) { oldDraft, newDraft in
+            if oldDraft != newDraft, model.isPreviewingIcon {
+                model.clearIconPreview()
+            }
         }
         .alert(
             "Delete Drawing?",
@@ -313,6 +320,13 @@ struct IconStudioView: View {
 
     private var animationConfiguration: IconAnimationConfiguration {
         settings.animationConfiguration(for: selectedIndicator)
+    }
+
+    private var previewButtonTitle: String {
+        if model.isPreviewingIcon {
+            return "Stop Menu Bar Preview (\(model.iconPreviewSecondsRemaining)s)"
+        }
+        return "Preview in Menu Bar"
     }
 
     private var animationDurationBinding: Binding<Int> {
