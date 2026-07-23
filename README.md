@@ -67,9 +67,15 @@ The drawing can be previewed immediately in the menu bar before saving. Up to
 20 drawings are cached; drawings currently assigned to a status are pinned,
 and the oldest unassigned drawing is evicted first. Hover over an unassigned
 drawing to delete it after confirmation; drawings in use cannot be deleted.
-**Set Default** preserves the selected batch job and drawing history while
-restoring SF Symbols, a five-minute interval, failure notifications, and Launch
-at Login off.
+Each status can independently apply no animation, rotate, shake, sway, or breathe
+to either a custom drawing or its system icon. Each effect uses a one-second
+motion cycle and can run for one to five seconds before returning to a static
+icon. None always uses a zero-second duration; selecting an animated effect
+starts with a two-second default. Reduce Motion disables icon animation
+automatically. **Reset All Preferences** preserves the selected batch job and
+drawing history while restoring SF Symbols, disabling icon animations, setting
+a five-minute interval, enabling failure notifications, and turning Launch at
+Login off.
 
 ## Local packaging
 

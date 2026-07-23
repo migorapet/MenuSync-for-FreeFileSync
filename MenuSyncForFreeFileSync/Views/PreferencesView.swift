@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct PreferencesView: View {
     @ObservedObject var model: AppModel
     @EnvironmentObject private var settings: SettingsStore
+    @State private var isShowingResetConfirmation = false
 
     private let intervals = [1, 5, 10, 15, 30, 60]
 
@@ -79,13 +80,20 @@ struct PreferencesView: View {
             }
 
             HStack {
+                Button {
+                    isShowingResetConfirmation = true
+                } label: {
+                    Text("Reset All Preferences…")
+                        .foregroundStyle(.red)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
                 Text("Synchronization rules remain managed by FreeFileSync.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                Spacer()
-                Button("Set Default") {
-                    model.resetPreferencesToDefaults()
-                }
+
                 Button("Open Batch in FreeFileSync") {
                     model.openBatchInFreeFileSync()
                 }
@@ -93,9 +101,22 @@ struct PreferencesView: View {
             }
         }
         .padding(24)
-        .frame(width: 780, height: 730, alignment: .topLeading)
+        .frame(width: 780, height: 780, alignment: .topLeading)
         .onAppear {
             model.requestNotificationAuthorizationIfNeeded()
+        }
+        .alert(
+            "Reset All Preferences?",
+            isPresented: $isShowingResetConfirmation
+        ) {
+            Button("Reset All Preferences", role: .destructive) {
+                model.resetPreferencesToDefaults()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "This resets the FreeFileSync app path, sync interval, notifications, status icons, animations, and Launch at Login. The batch job path and saved drawing history are kept."
+            )
         }
     }
 

@@ -5,6 +5,15 @@ import ServiceManagement
 import SwiftUI
 import UserNotifications
 
+private struct IconFrameCacheSignature: Equatable {
+    let indicator: String
+    let drawingID: UUID?
+    let systemSymbolName: String?
+    let configuration: IconAnimationConfiguration
+    let isPreview: Bool
+    let reduceMotion: Bool
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var state: SyncState
@@ -12,9 +21,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var launchAtLoginEnabled: Bool
     @Published private(set) var currentTime = Date()
+    @Published private(set) var iconAnimationDate = Date()
     @Published private(set) var nextScheduledSyncAt: Date?
     @Published private(set) var consecutiveFailureCount: Int
     @Published private(set) var previewIconDrawing: CustomIconDrawing? = nil
+    @Published private(set) var previewAnimationConfiguration:
+        IconAnimationConfiguration? = nil
 
     private static let summaryKey = "lastSyncSummary"
     private static let failureCountKey = "consecutiveFailureCount"
@@ -23,10 +35,14 @@ final class AppModel: ObservableObject {
     private let settings: SettingsStore
     private var syncTimer: Timer?
     private var indicatorTimer: Timer?
+    private var iconAnimationTimer: Timer?
     private var iconPreviewTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var preferencesWindowController: NSWindowController?
     private var failureBatchJobPath: String
+    private var iconFrameCacheSignature: IconFrameCacheSignature?
+    private var iconFrameCache: [NSImage] = []
+    private var iconAnimationStartedAt: Date?
 
     init(settings: SettingsStore) {
         self.settings = settings
@@ -63,6 +79,11 @@ final class AppModel: ObservableObject {
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &cancellables)
 
+        settings.$statusAnimationSettings
+            .dropFirst()
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+
         settings.$customIconHistory
             .dropFirst()
             .sink { [weak self] _ in self?.objectWillChange.send() }
@@ -89,6 +110,7 @@ final class AppModel: ObservableObject {
             .store(in: &cancellables)
 
         startIndicatorTimer()
+        startIconAnimationTimer()
         scheduleInitialSync()
     }
 
@@ -105,23 +127,74 @@ final class AppModel: ObservableObject {
         )
     }
 
+    var isIconAnimationActive: Bool {
+        let configuration = previewAnimationConfiguration
+            ?? settings.animationConfiguration(for: indicator)
+        guard configuration.effect != .none,
+              !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        else {
+            return false
+        }
+        guard let iconAnimationStartedAt else { return true }
+        return iconAnimationDate
+            < iconAnimationStartedAt.addingTimeInterval(
+                TimeInterval(configuration.durationSeconds)
+            )
+    }
+
     var menuBarImage: NSImage {
-        if let previewIconDrawing {
-            return MenuBarIconRenderer.customImage(
-                from: previewIconDrawing,
-                accessibilityDescription: "Custom icon preview"
+        menuBarImage(at: iconAnimationDate)
+    }
+
+    func menuBarImage(at date: Date = Date()) -> NSImage {
+        let drawing = previewIconDrawing
+            ?? settings.customDrawing(for: indicator)
+        let systemSymbolName = drawing == nil
+            ? settings.systemSymbolName(for: indicator)
+                ?? indicator.defaultSystemSymbol
+            : nil
+        let configuration = previewAnimationConfiguration
+            ?? settings.animationConfiguration(for: indicator)
+        let signature = IconFrameCacheSignature(
+            indicator: indicator.rawValue,
+            drawingID: drawing?.id,
+            systemSymbolName: systemSymbolName,
+            configuration: configuration,
+            isPreview: previewIconDrawing != nil,
+            reduceMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        )
+
+        var frameDate = date
+        if signature != iconFrameCacheSignature {
+            let baseImage: NSImage
+            if let drawing {
+                baseImage = MenuBarIconRenderer.customImage(
+                    from: drawing,
+                    accessibilityDescription: previewIconDrawing == nil
+                        ? menuBarStatusText
+                        : "Custom icon preview"
+                )
+            } else {
+                baseImage = MenuBarIconRenderer.systemImage(
+                    named: systemSymbolName ?? indicator.defaultSystemSymbol,
+                    accessibilityDescription: menuBarStatusText
+                )
+            }
+            iconFrameCache = MenuBarIconRenderer.animationFrames(
+                from: baseImage,
+                configuration: configuration
             )
+            iconFrameCacheSignature = signature
+            let startedAt = Date()
+            iconAnimationStartedAt = startedAt
+            frameDate = startedAt
         }
-        if let drawing = settings.customDrawing(for: indicator) {
-            return MenuBarIconRenderer.customImage(
-                from: drawing,
-                accessibilityDescription: menuBarStatusText
-            )
-        }
-        return MenuBarIconRenderer.systemImage(
-            named: settings.systemSymbolName(for: indicator)
-                ?? indicator.defaultSystemSymbol,
-            accessibilityDescription: menuBarStatusText
+
+        return MenuBarIconRenderer.frame(
+            at: frameDate,
+            animationStartedAt: iconAnimationStartedAt ?? frameDate,
+            from: iconFrameCache,
+            animationDurationSeconds: configuration.durationSeconds
         )
     }
 
@@ -353,9 +426,15 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func previewIcon(_ drawing: CustomIconDrawing) {
+    func previewIcon(
+        _ drawing: CustomIconDrawing,
+        animationConfiguration: IconAnimationConfiguration
+    ) {
         guard !drawing.isEmpty else { return }
         previewIconDrawing = drawing
+        previewAnimationConfiguration = animationConfiguration
+        iconFrameCacheSignature = nil
+        iconAnimationStartedAt = nil
         iconPreviewTimer?.invalidate()
         let timer = Timer(timeInterval: 15, repeats: false) { [weak self] _ in
             Task { @MainActor in
@@ -370,6 +449,9 @@ final class AppModel: ObservableObject {
         iconPreviewTimer?.invalidate()
         iconPreviewTimer = nil
         previewIconDrawing = nil
+        previewAnimationConfiguration = nil
+        iconFrameCacheSignature = nil
+        iconAnimationStartedAt = nil
     }
 
     func requestNotificationAuthorizationIfNeeded() {
@@ -439,6 +521,19 @@ final class AppModel: ObservableObject {
         timer.tolerance = 0.15
         RunLoop.main.add(timer, forMode: .common)
         indicatorTimer = timer
+    }
+
+    private func startIconAnimationTimer() {
+        iconAnimationTimer?.invalidate()
+        let timer = Timer(timeInterval: 1.0 / 15.0, repeats: true) {
+            [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isIconAnimationActive else { return }
+                self.iconAnimationDate = Date()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        iconAnimationTimer = timer
     }
 
     private func recordFailure(for batchJobPath: String) {

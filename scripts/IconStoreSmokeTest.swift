@@ -11,8 +11,14 @@ struct IconStoreSmokeTest {
         let store = SettingsStore(defaults: defaults)
         let pinned = drawing(createdAt: Date(timeIntervalSinceReferenceDate: 1))
         store.saveAndAssign(pinned, to: .synced)
+        store.setAnimationEffect(.spin, for: .synced)
+        store.setAnimationDuration(5, for: .synced)
         let reloadedStore = SettingsStore(defaults: defaults)
         precondition(reloadedStore.customIconHistory.first?.strokes.first?.color == .mint)
+        precondition(
+            reloadedStore.animationConfiguration(for: .synced)
+                == IconAnimationConfiguration(effect: .spin, durationSeconds: 5)
+        )
 
         let legacyStrokeData = """
         {"points":[{"x":0.2,"y":0.2}],"width":0.08}
@@ -50,6 +56,31 @@ struct IconStoreSmokeTest {
             preconditionFailure("Expected an unused drawing")
         }
 
+        store.setAnimationEffect(.none, for: .synced)
+        precondition(
+            store.animationConfiguration(for: .synced)
+                == IconAnimationConfiguration()
+        )
+        store.setAnimationDuration(5, for: .synced)
+        precondition(
+            store.animationConfiguration(for: .synced).durationSeconds == 0
+        )
+        store.setAnimationEffect(.sway, for: .synced)
+        precondition(
+            store.animationConfiguration(for: .synced)
+                == IconAnimationConfiguration(
+                    effect: .sway,
+                    durationSeconds: 2
+                )
+        )
+        store.setAnimationDuration(4, for: .synced)
+        store.useDefaultIcon(for: .synced)
+        precondition(store.customDrawing(for: .synced) == nil)
+        precondition(
+            store.animationConfiguration(for: .synced)
+                == IconAnimationConfiguration()
+        )
+
         store.intervalMinutes = 60
         store.batchJobPath = "/tmp/kept.ffs_batch"
         store.freeFileSyncAppPath = "/tmp/Custom FreeFileSync.app"
@@ -58,6 +89,10 @@ struct IconStoreSmokeTest {
         precondition(store.batchJobPath == "/tmp/kept.ffs_batch")
         precondition(
             store.freeFileSyncAppPath == SettingsStore.defaultFreeFileSyncAppPath
+        )
+        precondition(
+            store.animationConfiguration(for: .synced)
+                == IconAnimationConfiguration()
         )
 
         print("Icon store smoke tests passed")

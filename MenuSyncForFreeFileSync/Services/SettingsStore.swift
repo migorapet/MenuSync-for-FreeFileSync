@@ -8,6 +8,7 @@ final class SettingsStore: ObservableObject {
         static let intervalMinutes = "intervalMinutes"
         static let notificationsOnFailure = "notificationsOnFailure"
         static let statusIconAssignments = "statusIconAssignments"
+        static let statusAnimationSettings = "statusAnimationSettings"
         static let customIconHistory = "customIconHistory"
     }
 
@@ -37,6 +38,14 @@ final class SettingsStore: ObservableObject {
         didSet {
             if let data = try? JSONEncoder().encode(statusIconAssignments) {
                 defaults.set(data, forKey: Key.statusIconAssignments)
+            }
+        }
+    }
+
+    @Published var statusAnimationSettings: [String: IconAnimationConfiguration] {
+        didSet {
+            if let data = try? JSONEncoder().encode(statusAnimationSettings) {
+                defaults.set(data, forKey: Key.statusAnimationSettings)
             }
         }
     }
@@ -72,6 +81,21 @@ final class SettingsStore: ObservableObject {
             assignments.merge(saved) { _, savedValue in savedValue }
         }
         statusIconAssignments = assignments
+
+        var animationSettings = Self.defaultStatusAnimationSettings
+        if let data = defaults.data(forKey: Key.statusAnimationSettings),
+           let saved = try? JSONDecoder().decode(
+               [String: IconAnimationConfiguration].self,
+               from: data
+           ) {
+            for (key, configuration) in saved {
+                animationSettings[key] = IconAnimationConfiguration(
+                    effect: configuration.effect,
+                    durationSeconds: configuration.durationSeconds
+                )
+            }
+        }
+        statusAnimationSettings = animationSettings
 
         if let data = defaults.data(forKey: Key.customIconHistory),
            let saved = try? JSONDecoder().decode([CustomIconDrawing].self, from: data) {
@@ -118,7 +142,44 @@ final class SettingsStore: ObservableObject {
     func useDefaultIcon(for indicator: MenuBarIndicator) {
         statusIconAssignments[indicator.rawValue] =
             Self.systemPrefix + indicator.defaultSystemSymbol
+        statusAnimationSettings[indicator.rawValue] =
+            IconAnimationConfiguration()
         pruneCustomIconHistory()
+    }
+
+    func animationConfiguration(
+        for indicator: MenuBarIndicator
+    ) -> IconAnimationConfiguration {
+        statusAnimationSettings[indicator.rawValue]
+            ?? IconAnimationConfiguration()
+    }
+
+    func setAnimationEffect(
+        _ effect: IconAnimationEffect,
+        for indicator: MenuBarIndicator
+    ) {
+        let currentDuration = animationConfiguration(
+            for: indicator
+        ).durationSeconds
+        statusAnimationSettings[indicator.rawValue] =
+            IconAnimationConfiguration(
+                effect: effect,
+                durationSeconds: currentDuration > 0
+                    ? currentDuration
+                    : IconAnimationConfiguration.defaultDurationSeconds
+            )
+    }
+
+    func setAnimationDuration(
+        _ durationSeconds: Int,
+        for indicator: MenuBarIndicator
+    ) {
+        let effect = animationConfiguration(for: indicator).effect
+        statusAnimationSettings[indicator.rawValue] =
+            IconAnimationConfiguration(
+                effect: effect,
+                durationSeconds: durationSeconds
+            )
     }
 
     func isCustomIconInUse(_ id: UUID) -> Bool {
@@ -160,6 +221,7 @@ final class SettingsStore: ObservableObject {
         intervalMinutes = Self.defaultIntervalMinutes
         notificationsOnFailure = true
         statusIconAssignments = Self.defaultStatusIconAssignments
+        statusAnimationSettings = Self.defaultStatusAnimationSettings
         pruneCustomIconHistory()
     }
 
@@ -194,6 +256,15 @@ final class SettingsStore: ObservableObject {
         Dictionary(
             uniqueKeysWithValues: MenuBarIndicator.allCases.map {
                 ($0.rawValue, systemPrefix + $0.defaultSystemSymbol)
+            }
+        )
+    }
+
+    private static var defaultStatusAnimationSettings:
+        [String: IconAnimationConfiguration] {
+        Dictionary(
+            uniqueKeysWithValues: MenuBarIndicator.allCases.map {
+                ($0.rawValue, IconAnimationConfiguration())
             }
         )
     }

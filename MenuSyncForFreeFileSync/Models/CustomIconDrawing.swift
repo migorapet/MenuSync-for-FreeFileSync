@@ -41,6 +41,74 @@ enum IconStrokeColor: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum IconAnimationEffect: String, Codable, CaseIterable, Identifiable {
+    case none
+    case spin
+    case shake
+    case sway
+    case breathe
+
+    var id: Self { self }
+
+    var displayName: String {
+        switch self {
+        case .none: "None"
+        case .spin: "Rotate"
+        case .shake: "Shake"
+        case .sway: "Sway"
+        case .breathe: "Breathe"
+        }
+    }
+}
+
+struct IconAnimationConfiguration: Codable, Equatable {
+    static let defaultDurationSeconds = 2
+
+    var effect: IconAnimationEffect
+    var durationSeconds: Int
+
+    init(
+        effect: IconAnimationEffect = .none,
+        durationSeconds: Int? = nil
+    ) {
+        self.effect = effect
+        self.durationSeconds = effect == .none
+            ? 0
+            : min(
+                max(
+                    durationSeconds ?? Self.defaultDurationSeconds,
+                    1
+                ),
+                5
+            )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case effect
+        case durationSeconds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            effect: try container.decode(
+                IconAnimationEffect.self,
+                forKey: .effect
+            ),
+            durationSeconds: try container.decodeIfPresent(
+                Int.self,
+                forKey: .durationSeconds
+            )
+        )
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(effect, forKey: .effect)
+        try container.encode(durationSeconds, forKey: .durationSeconds)
+    }
+}
+
 struct IconStroke: Codable, Equatable {
     let points: [IconPoint]
     let width: Double

@@ -74,6 +74,7 @@ struct CompanionMenuView: View {
             Image(nsImage: model.menuBarImage)
                 .resizable()
                 .frame(width: 14, height: 14)
+            .frame(width: 14, height: 14)
             Text(model.isPreviewingIcon ? "Icon Preview" : model.menuBarStatusText)
                 .lineLimit(1)
         }
