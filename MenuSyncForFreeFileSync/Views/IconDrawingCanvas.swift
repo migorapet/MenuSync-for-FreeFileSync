@@ -3,7 +3,9 @@ import SwiftUI
 struct IconDrawingCanvas: View {
     @Binding var drawing: CustomIconDrawing
     @Binding var lineWidth: Double
+    @Binding var selectedColor: IconStrokeColor
     @State private var activePoints: [IconPoint] = []
+    @State private var activeColor: IconStrokeColor = .white
 
     var body: some View {
         GeometryReader { geometry in
@@ -14,13 +16,19 @@ struct IconDrawingCanvas: View {
                 }
                 if !activePoints.isEmpty {
                     draw(
-                        IconStroke(points: activePoints, width: lineWidth),
+                        IconStroke(
+                            points: activePoints,
+                            width: lineWidth,
+                            color: activeColor
+                        ),
                         context: &context,
                         size: size
                     )
                 }
             }
-            .background(Color.black.opacity(0.86))
+            .background(
+                Color(red: 0.34, green: 0.35, blue: 0.38)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay {
                 RoundedRectangle(cornerRadius: 8)
@@ -30,6 +38,9 @@ struct IconDrawingCanvas: View {
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { value in
+                        if activePoints.isEmpty {
+                            activeColor = selectedColor
+                        }
                         activePoints.append(
                             normalizedPoint(value.location, in: geometry.size)
                         )
@@ -37,7 +48,11 @@ struct IconDrawingCanvas: View {
                     .onEnded { _ in
                         guard !activePoints.isEmpty else { return }
                         drawing.strokes.append(
-                            IconStroke(points: activePoints, width: lineWidth)
+                            IconStroke(
+                                points: activePoints,
+                                width: lineWidth,
+                                color: activeColor
+                            )
                         )
                         activePoints.removeAll(keepingCapacity: true)
                     }
@@ -67,7 +82,7 @@ struct IconDrawingCanvas: View {
 
         context.stroke(
             path,
-            with: .color(.white),
+            with: .color(stroke.color.swiftUIColor),
             style: StrokeStyle(
                 lineWidth: max(stroke.width * size.width, 1),
                 lineCap: .round,
@@ -87,7 +102,7 @@ struct IconDrawingCanvas: View {
                         height: radius * 2
                     )
                 ),
-                with: .color(.white)
+                with: .color(stroke.color.swiftUIColor)
             )
         }
     }
@@ -123,7 +138,7 @@ struct DrawingThumbnail: View {
                 }
                 context.stroke(
                     path,
-                    with: .color(.primary),
+                    with: .color(stroke.color.swiftUIColor),
                     style: StrokeStyle(
                         lineWidth: max(stroke.width * size.width, 1),
                         lineCap: .round,
@@ -133,9 +148,23 @@ struct DrawingThumbnail: View {
             }
         }
         .frame(width: 28, height: 28)
+        .background(
+            Color(red: 0.34, green: 0.35, blue: 0.38),
+            in: RoundedRectangle(cornerRadius: 5)
+        )
     }
 
     private func position(_ point: IconPoint, in size: CGSize) -> CGPoint {
         CGPoint(x: point.x * size.width, y: point.y * size.height)
+    }
+}
+
+private extension IconStrokeColor {
+    var swiftUIColor: Color {
+        Color(
+            red: components.red,
+            green: components.green,
+            blue: components.blue
+        )
     }
 }

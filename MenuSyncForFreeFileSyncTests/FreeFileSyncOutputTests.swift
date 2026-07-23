@@ -40,6 +40,22 @@ final class FreeFileSyncOutputTests: XCTestCase {
         XCTAssertEqual(SyncEvaluation.state(for: output, terminationStatus: 0), .error)
     }
 
+    func testStrokeColorRoundTripAndLegacyDefault() throws {
+        let stroke = IconStroke(
+            points: [IconPoint(x: 0.25, y: 0.75)],
+            width: 0.08,
+            color: .mint
+        )
+        let encoded = try JSONEncoder().encode(stroke)
+        XCTAssertEqual(try JSONDecoder().decode(IconStroke.self, from: encoded), stroke)
+
+        let legacyJSON = #"""
+        {"points":[{"x":0.25,"y":0.75}],"width":0.08}
+        """#.data(using: .utf8)!
+        let legacyStroke = try JSONDecoder().decode(IconStroke.self, from: legacyJSON)
+        XCTAssertEqual(legacyStroke.color, .white)
+    }
+
     func testMenuBarFreshnessTransitions() {
         let now = Date(timeIntervalSinceReferenceDate: 10_000)
         let interval: TimeInterval = 600

@@ -72,7 +72,6 @@ struct CompanionMenuView: View {
                 .foregroundStyle(.secondary)
             Spacer(minLength: 12)
             Image(nsImage: model.menuBarImage)
-                .renderingMode(.template)
                 .resizable()
                 .frame(width: 14, height: 14)
             Text(model.isPreviewingIcon ? "Icon Preview" : model.menuBarStatusText)

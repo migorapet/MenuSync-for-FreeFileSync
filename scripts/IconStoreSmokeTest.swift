@@ -11,6 +11,17 @@ struct IconStoreSmokeTest {
         let store = SettingsStore(defaults: defaults)
         let pinned = drawing(createdAt: Date(timeIntervalSinceReferenceDate: 1))
         store.saveAndAssign(pinned, to: .synced)
+        let reloadedStore = SettingsStore(defaults: defaults)
+        precondition(reloadedStore.customIconHistory.first?.strokes.first?.color == .mint)
+
+        let legacyStrokeData = """
+        {"points":[{"x":0.2,"y":0.2}],"width":0.08}
+        """.data(using: .utf8)!
+        let legacyStroke = try! JSONDecoder().decode(
+            IconStroke.self,
+            from: legacyStrokeData
+        )
+        precondition(legacyStroke.color == .white)
 
         var oldestUnusedID: UUID?
         for index in 0..<20 {
@@ -61,7 +72,8 @@ struct IconStoreSmokeTest {
                         IconPoint(x: 0.2, y: 0.2),
                         IconPoint(x: 0.8, y: 0.8)
                     ],
-                    width: 0.08
+                    width: 0.08,
+                    color: .mint
                 )
             ]
         )

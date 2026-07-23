@@ -25,7 +25,6 @@ struct MenuSyncForFreeFileSyncApp: App {
                 .environmentObject(settings)
         } label: {
             Image(nsImage: model.menuBarImage)
-                .renderingMode(.template)
                 .resizable()
                 .frame(width: 16, height: 16)
                 .accessibilityLabel(model.menuBarStatusText)

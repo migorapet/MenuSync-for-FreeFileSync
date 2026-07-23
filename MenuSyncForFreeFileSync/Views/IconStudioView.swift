@@ -7,6 +7,7 @@ struct IconStudioView: View {
     @State private var selectedIndicator: MenuBarIndicator = .synced
     @State private var draft = CustomIconDrawing()
     @State private var lineWidth = 0.075
+    @State private var selectedColor: IconStrokeColor = .white
     @State private var deletionCandidateID: UUID?
 
     var body: some View {
@@ -27,20 +28,61 @@ struct IconStudioView: View {
                 Text("Current")
                     .foregroundStyle(.secondary)
                 Image(nsImage: assignedImage)
-                    .renderingMode(.template)
                     .resizable()
                     .frame(width: 20, height: 20)
             }
 
             HStack(alignment: .top, spacing: 18) {
-                IconDrawingCanvas(drawing: $draft, lineWidth: $lineWidth)
+                IconDrawingCanvas(
+                    drawing: $draft,
+                    lineWidth: $lineWidth,
+                    selectedColor: $selectedColor
+                )
                     .frame(width: 220, height: 220)
 
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Draw in white. The saved icon becomes a macOS template and automatically matches the menu bar appearance.")
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Choose a color, then draw. Each stroke keeps the color selected when it was created.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 8) {
+                        Text("Color")
+                            .frame(width: 45, alignment: .leading)
+
+                        HStack(spacing: 8) {
+                            ForEach(IconStrokeColor.allCases) { color in
+                                Button {
+                                    selectedColor = color
+                                } label: {
+                                    ZStack {
+                                        Circle()
+                                            .fill(color.swiftUIColor)
+                                        Circle()
+                                            .stroke(
+                                                selectedColor == color
+                                                    ? Color.accentColor
+                                                    : Color.secondary.opacity(0.45),
+                                                lineWidth: selectedColor == color ? 3 : 1
+                                            )
+                                        if selectedColor == color {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundStyle(color.checkmarkColor)
+                                        }
+                                    }
+                                    .frame(width: 32, height: 32)
+                                    .contentShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+                                .help(color.displayName)
+                                .accessibilityLabel(color.displayName)
+                                .accessibilityAddTraits(
+                                    selectedColor == color ? .isSelected : []
+                                )
+                            }
+                        }
+                    }
 
                     HStack {
                         Text("Stroke")
@@ -75,16 +117,18 @@ struct IconStudioView: View {
                         }
                     }
 
-                    Button("Save & Use for \(selectedIndicator.displayName)") {
-                        settings.saveAndAssign(draft, to: selectedIndicator)
-                        model.clearIconPreview()
-                        draft = CustomIconDrawing()
-                    }
-                    .disabled(draft.isEmpty)
+                    HStack {
+                        Button("Save & Use for \(selectedIndicator.displayName)") {
+                            settings.saveAndAssign(draft, to: selectedIndicator)
+                            model.clearIconPreview()
+                            draft = CustomIconDrawing()
+                        }
+                        .disabled(draft.isEmpty)
 
-                    Button("Use System Default") {
-                        settings.useDefaultIcon(for: selectedIndicator)
-                        model.clearIconPreview()
+                        Button("Use System Default") {
+                            settings.useDefaultIcon(for: selectedIndicator)
+                            model.clearIconPreview()
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -169,6 +213,20 @@ struct IconStudioView: View {
                 ?? selectedIndicator.defaultSystemSymbol,
             accessibilityDescription: selectedIndicator.displayName
         )
+    }
+}
+
+private extension IconStrokeColor {
+    var swiftUIColor: Color {
+        Color(
+            red: components.red,
+            green: components.green,
+            blue: components.blue
+        )
+    }
+
+    var checkmarkColor: Color {
+        self == .charcoal ? .white : .black.opacity(0.72)
     }
 }
 

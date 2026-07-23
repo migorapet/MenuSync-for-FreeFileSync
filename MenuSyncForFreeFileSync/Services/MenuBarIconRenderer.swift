@@ -21,10 +21,17 @@ enum MenuBarIconRenderer {
     ) -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
-            NSColor.black.setStroke()
-            NSColor.black.setFill()
-
             for stroke in drawing.strokes where !stroke.points.isEmpty {
+                let components = stroke.color.components
+                let color = NSColor(
+                    red: components.red,
+                    green: components.green,
+                    blue: components.blue,
+                    alpha: 1
+                )
+                color.setStroke()
+                color.setFill()
+
                 let path = NSBezierPath()
                 path.lineCapStyle = .round
                 path.lineJoinStyle = .round
@@ -58,7 +65,7 @@ enum MenuBarIconRenderer {
             return true
         }
         image.accessibilityDescription = accessibilityDescription
-        image.isTemplate = true
+        image.isTemplate = false
         return image
     }
 }
